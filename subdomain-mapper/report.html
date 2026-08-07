@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attack Surface Map — kpcs.cz</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<style>
+  :root {
+    --bg: #070a12;
+    --bg-panel: rgba(15, 21, 34, 0.88);
+    --border: rgba(120, 160, 220, 0.16);
+    --text: #dce6f5;
+    --text-dim: #7e8ca6;
+    --high: #ff3860;
+    --medium: #ffb020;
+    --low: #38bdf8;
+    --target: #a855f7;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    overflow: hidden;
+  }
+
+  /* Subtle grid + radial glow so the canvas never reads as flat black. */
+  #backdrop {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 45%, rgba(56,189,248,0.07), transparent 70%),
+      radial-gradient(ellipse 50% 50% at 85% 15%, rgba(168,85,247,0.06), transparent 70%),
+      linear-gradient(rgba(120,160,220,0.045) 1px, transparent 1px) 0 0 / 44px 44px,
+      linear-gradient(90deg, rgba(120,160,220,0.045) 1px, transparent 1px) 0 0 / 44px 44px;
+  }
+
+  #graph { position: fixed; inset: 0; z-index: 1; }
+
+  /* ---------- header ---------- */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; align-items: center; gap: 18px;
+    padding: 14px 22px;
+    background: linear-gradient(180deg, rgba(7,10,18,0.95), rgba(7,10,18,0));
+    pointer-events: none;
+  }
+  header > * { pointer-events: auto; }
+
+  .brand { display: flex; flex-direction: column; gap: 3px; }
+  .brand h1 {
+    margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.03em;
+  }
+  .brand h1 .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--low); margin-right: 8px; vertical-align: middle;
+    box-shadow: 0 0 10px var(--low);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  .brand .meta { font-size: 10.5px; color: var(--text-dim); letter-spacing: 0.05em; }
+
+  .stats { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .stat {
+    background: var(--bg-panel); border: 1px solid var(--border); border-radius: 7px;
+    padding: 7px 13px; min-width: 66px; backdrop-filter: blur(12px);
+    cursor: default; transition: border-color 0.15s, transform 0.15s;
+  }
+  .stat:hover { transform: translateY(-1px); }
+  .stat .n { font-size: 18px; font-weight: 600; line-height: 1.1; }
+  .stat .l { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.09em; margin-top: 2px; }
+  .stat.high .n { color: var(--high); } .stat.high { border-color: rgba(255,56,96,0.35); }
+  .stat.medium .n { color: var(--medium); } .stat.medium { border-color: rgba(255,176,32,0.32); }
+  .stat.low .n { color: var(--low); }
+
+  /* ---------- controls ---------- */
+  #controls {
+    position: fixed; top: 78px; left: 22px; z-index: 10; width: 262px;
+    background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px; backdrop-filter: blur(14px);
+  }
+  #search {
+    width: 100%; padding: 8px 11px; font-family: var(--mono); font-size: 12px;
+    background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); outline: none; transition: border-color 0.15s;
+  }
+  #search:focus { border-color: rgba(56,189,248,0.55); }
+  #search::placeholder { color: var(--text-dim); }
+
+  .group { margin-top: 12px; }
+  .group-label {
+    font-size: 9px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.11em; margin-bottom: 7px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip {
+    font-family: var(--mono); font-size: 10.5px; padding: 4px 9px;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 20px; color: var(--text-dim); cursor: pointer;
+    transition: all 0.15s; user-select: none;
+  }
+  .chip:hover { color: var(--text); border-color: rgba(120,160,220,0.4); }
+  .chip.on { background: rgba(56,189,248,0.14); border-color: rgba(56,189,248,0.5); color: var(--text); }
+  .chip.on[data-risk="high"] { background: rgba(255,56,96,0.16); border-color: rgba(255,56,96,0.55); }
+  .chip.on[data-risk="medium"] { background: rgba(255,176,32,0.16); border-color: rgba(255,176,32,0.55); }
+
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; color: var(--text-dim); padding: 5px 0; cursor: pointer;
+  }
+  .toggle-row:hover { color: var(--text); }
+  .switch {
+    width: 30px; height: 16px; border-radius: 10px; background: rgba(255,255,255,0.09);
+    border: 1px solid var(--border); position: relative; transition: background 0.18s;
+  }
+  .switch::after {
+    content: ''; position: absolute; top: 1.5px; left: 2px;
+    width: 11px; height: 11px; border-radius: 50%; background: var(--text-dim);
+    transition: transform 0.18s, background 0.18s;
+  }
+  .switch.on { background: rgba(56,189,248,0.32); }
+  .switch.on::after { transform: translateX(13px); background: var(--low); }
+
+  #hitcount { font-size: 10px; color: var(--text-dim); margin-top: 10px; }
+  #hitcount b { color: var(--text); }
+
+  /* ---------- detail panel ---------- */
+  #detail {
+    position: fixed; top: 78px; right: 22px; z-index: 10; width: 320px;
+    max-height: calc(100vh - 110px); overflow-y: auto;
+    background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px;
+    backdrop-filter: blur(14px);
+    transform: translateX(calc(100% + 30px)); opacity: 0;
+    transition: transform 0.3s cubic-bezier(.2,.8,.3,1), opacity 0.25s;
+  }
+  #detail.open { transform: translateX(0); opacity: 1; }
+  #detail::-webkit-scrollbar { width: 5px; }
+  #detail::-webkit-scrollbar-thumb { background: rgba(120,160,220,0.25); border-radius: 3px; }
+
+  .detail-head { padding: 14px 15px 12px; border-bottom: 1px solid var(--border); }
+  .detail-host {
+    font-size: 13px; font-weight: 600; word-break: break-all; line-height: 1.45;
+    padding-right: 22px;
+  }
+  .detail-badge {
+    display: inline-block; margin-top: 8px; font-size: 9.5px; padding: 3px 9px;
+    border-radius: 20px; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 600;
+  }
+  .badge-high { background: rgba(255,56,96,0.16); color: var(--high); border: 1px solid rgba(255,56,96,0.4); }
+  .badge-medium { background: rgba(255,176,32,0.16); color: var(--medium); border: 1px solid rgba(255,176,32,0.4); }
+  .badge-low { background: rgba(56,189,248,0.13); color: var(--low); border: 1px solid rgba(56,189,248,0.35); }
+  .badge-target { background: rgba(168,85,247,0.16); color: var(--target); border: 1px solid rgba(168,85,247,0.4); }
+
+  #detail-close {
+    position: absolute; top: 12px; right: 12px; width: 20px; height: 20px;
+    display: grid; place-items: center; cursor: pointer; color: var(--text-dim);
+    font-size: 15px; line-height: 1; border-radius: 4px;
+  }
+  #detail-close:hover { color: var(--text); background: rgba(255,255,255,0.07); }
+
+  .detail-body { padding: 5px 15px 15px; }
+  .field { padding: 9px 0; border-bottom: 1px solid rgba(120,160,220,0.08); }
+  .field:last-child { border-bottom: none; }
+  .field .k {
+    font-size: 9px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.1em; margin-bottom: 4px;
+  }
+  .field .v { font-size: 11.5px; word-break: break-all; line-height: 1.55; }
+  .field .v.empty { color: var(--text-dim); font-style: italic; }
+  .tag {
+    display: inline-block; font-size: 10px; padding: 2px 7px; margin: 2px 3px 2px 0;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 4px;
+  }
+  .neighbour {
+    display: block; font-size: 10.5px; padding: 3px 0; color: var(--low);
+    cursor: pointer; text-decoration: none;
+  }
+  .neighbour:hover { text-decoration: underline; }
+  .status-2 { color: #4ade80; } .status-3 { color: var(--low); }
+  .status-4 { color: var(--medium); } .status-5 { color: var(--high); }
+
+  /* ---------- legend + footer ---------- */
+  #legend {
+    position: fixed; bottom: 18px; left: 22px; z-index: 10;
+    background: var(--bg-panel); border: 1px solid var(--border); border-radius: 9px;
+    padding: 11px 13px; backdrop-filter: blur(14px); font-size: 10.5px;
+  }
+  .leg { display: flex; align-items: center; gap: 8px; padding: 3px 0; color: var(--text-dim); }
+  .leg .swatch { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .leg .line { width: 16px; height: 0; border-top: 1.5px dashed rgba(120,160,220,0.5); flex: none; }
+
+  #hint {
+    position: fixed; bottom: 18px; right: 22px; z-index: 10;
+    font-size: 10px; color: var(--text-dim); text-align: right; line-height: 1.7;
+  }
+  #hint kbd {
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+    border-radius: 3px; padding: 1px 4px; font-family: var(--mono); font-size: 9.5px;
+  }
+
+  /* ---------- graph elements ---------- */
+  .link { stroke: rgba(120,160,220,0.22); stroke-width: 1; fill: none; }
+  .link.shared { stroke: rgba(168,85,247,0.3); stroke-dasharray: 3 3; }
+  .link.hl { stroke: rgba(56,189,248,0.85); stroke-width: 1.8; }
+  .node { cursor: pointer; }
+  .node circle.core { stroke: rgba(7,10,18,0.9); stroke-width: 1.5; }
+  .node circle.halo { fill: none; stroke-width: 1; opacity: 0.35; }
+  .node text {
+    font-size: 9.5px; fill: var(--text-dim); pointer-events: none;
+    text-anchor: middle; paint-order: stroke;
+    stroke: rgba(7,10,18,0.85); stroke-width: 2.5px; stroke-linejoin: round;
+  }
+  .node.sel circle.core { stroke: #fff; stroke-width: 2; }
+  .node.sel text { fill: var(--text); font-weight: 600; }
+  .dim { opacity: 0.09; }
+  .node, .link { transition: opacity 0.22s; }
+
+  @media (max-width: 820px) {
+    #controls { width: calc(100vw - 44px); top: auto; bottom: 18px; }
+    #detail { width: calc(100vw - 44px); }
+    #legend, #hint { display: none; }
+    .stats { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="backdrop"></div>
+<svg id="graph"></svg>
+
+<header>
+  <div class="brand">
+    <h1><span class="dot"></span>ATTACK SURFACE MAP</h1>
+    <div class="meta" id="meta"></div>
+  </div>
+  <div class="stats" id="stats"></div>
+</header>
+
+<div id="controls">
+  <input id="search" type="text" placeholder="hledat hostname, IP, title…" autocomplete="off" spellcheck="false">
+
+  <div class="group">
+    <div class="group-label">Riziko</div>
+    <div class="chips" id="risk-chips"></div>
+  </div>
+
+  <div class="group">
+    <div class="group-label">Zdroj nálezu</div>
+    <div class="chips" id="source-chips"></div>
+  </div>
+
+  <div class="group">
+    <div class="toggle-row" id="toggle-alive">
+      <span>Jen živé (resolvující)</span><div class="switch" id="sw-alive"></div>
+    </div>
+    <div class="toggle-row" id="toggle-labels">
+      <span>Popisky nodů</span><div class="switch on" id="sw-labels"></div>
+    </div>
+    <div class="toggle-row" id="toggle-shared">
+      <span>Hrany sdílené IP</span><div class="switch on" id="sw-shared"></div>
+    </div>
+  </div>
+
+  <div id="hitcount"></div>
+</div>
+
+<div id="detail">
+  <div id="detail-close">&times;</div>
+  <div class="detail-head">
+    <div class="detail-host" id="d-host"></div>
+    <span class="detail-badge" id="d-badge"></span>
+  </div>
+  <div class="detail-body" id="d-body"></div>
+</div>
+
+<div id="legend">
+  <div class="leg"><span class="swatch" style="background:#a855f7"></span>cílová doména</div>
+  <div class="leg"><span class="swatch" style="background:#ff3860"></span>vysoké riziko</div>
+  <div class="leg"><span class="swatch" style="background:#ffb020"></span>střední riziko</div>
+  <div class="leg"><span class="swatch" style="background:#38bdf8"></span>nízké riziko</div>
+  <div class="leg"><span class="swatch" style="background:#2c3648"></span>neresolvuje</div>
+  <div class="leg"><span class="line"></span>sdílená IP adresa</div>
+</div>
+
+<div id="hint">
+  klik = detail &nbsp;·&nbsp; tah = přesun nodu<br>
+  kolečko = zoom &nbsp;·&nbsp; <kbd>Esc</kbd> zavře detail
+</div>
+
+<script>
+const DATA = {"target":"kpcs.cz","scanned_at":"2026-08-07T15:53:02+00:00","duration_seconds":42.8,"summary":{"total":8,"alive":7,"http_ok":6,"by_risk":{"high":0,"medium":0,"low":8},"by_source":{"wayback":8,"target":1},"unique_ips":7},"results":[{"hostname":"atom.kpcs.cz","ips":["88.86.118.12"],"alive":true,"shared_with":[],"status":null,"title":null,"scheme":null,"server":null,"redirect":null,"sources":["wayback"],"risk":"low","risk_keywords":[]},{"hostname":"click.kpcs.cz","ips":["5.182.148.11"],"alive":true,"shared_with":[],"status":200,"title":"Welcome","scheme":"https","server":"Apache","redirect":null,"sources":["wayback"],"risk":"low","risk_keywords":[]},{"hostname":"fit.kpcs.cz","ips":["20.13.73.255"],"alive":true,"shared_with":[],"status":200,"title":"FitKPCS - Sportovní výzva","scheme":"https","server":null,"redirect":"https://fit.kpcs.cz/login","sources":["wayback"],"risk":"low","risk_keywords":[]},{"hostname":"helpdesk.kpcs.cz","ips":["104.41.216.137"],"alive":true,"shared_with":[],"status":200,"title":"Home &nbsp;· Customer Self-Service","scheme":"https","server":null,"redirect":null,"sources":["wayback"],"risk":"low","risk_keywords":[]},{"hostname":"kpcs.cz","ips":["37.9.175.213"],"alive":true,"shared_with":["www.kpcs.cz"],"status":200,"title":"KPCS | Technologie pro růst vaší firmy","scheme":"https","server":"openresty","redirect":"https://www.kpcs.cz/","sources":["wayback","target"],"risk":"low","risk_keywords":[]},{"hostname":"link.kpcs.cz","ips":["170.187.131.209","185.3.93.228"],"alive":true,"shared_with":[],"status":200,"title":"SMTP2GO","scheme":"https","server":null,"redirect":null,"sources":["wayback"],"risk":"low","risk_keywords":[]},{"hostname":"pomoc.kpcs.cz","ips":[],"alive":false,"shared_with":[],"status":null,"title":null,"scheme":null,"server":null,"redirect":null,"sources":["wayback"],"risk":"low","risk_keywords":[]},{"hostname":"www.kpcs.cz","ips":["37.9.175.213"],"alive":true,"shared_with":["kpcs.cz"],"status":200,"title":"KPCS | Technologie pro růst vaší firmy","scheme":"https","server":"openresty","redirect":null,"sources":["wayback"],"risk":"low","risk_keywords":["www"]}]};
+
+const RISK_COLOR = { target: '#a855f7', high: '#ff3860', medium: '#ffb020', low: '#38bdf8' };
+const DEAD_COLOR = '#2c3648';
+const RISK_LABEL = { target: 'cílová doména', high: 'vysoké riziko', medium: 'střední riziko', low: 'nízké riziko' };
+
+/* ---------------- build the graph model ---------------- */
+
+const apex = DATA.target;
+const records = DATA.results;
+
+const nodes = records.map(r => ({
+  id: r.hostname,
+  rec: r,
+  isTarget: r.hostname === apex,
+  risk: r.hostname === apex ? 'target' : (r.risk || 'low'),
+  // Node area scales with how much the host exposes: a live host with a
+  // shared IP and an HTTP response is bigger than a dangling DNS record.
+  radius: r.hostname === apex ? 17
+        : 4.5 + (r.alive ? 2.5 : 0) + (r.status ? 2 : 0)
+              + Math.min(3.5, (r.shared_with || []).length * 0.55)
+              + ({ high: 3, medium: 1.5, low: 0 })[r.risk || 'low']
+}));
+
+const nodeById = new Map(nodes.map(n => [n.id, n]));
+const links = [];
+
+// Every subdomain hangs off the apex; that radial skeleton is what makes the
+// layout readable instead of a hairball.
+for (const n of nodes) {
+  if (!n.isTarget) links.push({ source: apex, target: n.id, type: 'tree' });
+}
+
+// Shared-IP edges are the actual finding: they reveal co-hosted infrastructure.
+const seenPair = new Set();
+for (const r of records) {
+  for (const other of (r.shared_with || [])) {
+    if (!nodeById.has(other)) continue;
+    const key = [r.hostname, other].sort().join(' ');
+    if (seenPair.has(key)) continue;
+    seenPair.add(key);
+    links.push({ source: r.hostname, target: other, type: 'shared' });
+  }
+}
+
+/* ---------------- header + stats ---------------- */
+
+const s = DATA.summary;
+document.getElementById('meta').textContent =
+  `${apex}  ·  ${DATA.scanned_at.replace('T', ' ').replace('+00:00', ' UTC')}  ·  ${DATA.duration_seconds}s`;
+document.title = `Attack Surface Map — ${apex}`;
+
+document.getElementById('stats').innerHTML = [
+  ['', s.total, 'hostů'],
+  ['high', s.by_risk.high, 'vysoké'],
+  ['medium', s.by_risk.medium, 'střední'],
+  ['low', s.by_risk.low, 'nízké'],
+  ['', s.alive, 'živých'],
+  ['', s.unique_ips, 'IP']
+].map(([cls, n, l]) => `<div class="stat ${cls}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+
+/* ---------------- filter chips ---------------- */
+
+const state = {
+  q: '',
+  risks: new Set(['high', 'medium', 'low', 'target']),
+  sources: new Set(Object.keys(s.by_source || {})),
+  aliveOnly: false,
+  labels: true,
+  shared: true,
+  selected: null
+};
+
+const riskChips = document.getElementById('risk-chips');
+riskChips.innerHTML = ['high', 'medium', 'low'].map(r =>
+  `<div class="chip on" data-risk="${r}">${RISK_LABEL[r].split(' ')[0]} <b>${s.by_risk[r]}</b></div>`
+).join('');
+
+const sourceChips = document.getElementById('source-chips');
+sourceChips.innerHTML = Object.entries(s.by_source || {}).map(([src, n]) =>
+  `<div class="chip on" data-source="${src}">${src} <b>${n}</b></div>`
+).join('');
+
+riskChips.addEventListener('click', e => {
+  const chip = e.target.closest('.chip'); if (!chip) return;
+  const risk = chip.dataset.risk;
+  chip.classList.toggle('on');
+  chip.classList.contains('on') ? state.risks.add(risk) : state.risks.delete(risk);
+  applyFilters();
+});
+
+sourceChips.addEventListener('click', e => {
+  const chip = e.target.closest('.chip'); if (!chip) return;
+  const src = chip.dataset.source;
+  chip.classList.toggle('on');
+  chip.classList.contains('on') ? state.sources.add(src) : state.sources.delete(src);
+  applyFilters();
+});
+
+document.getElementById('search').addEventListener('input', e => {
+  state.q = e.target.value.trim().toLowerCase();
+  applyFilters();
+});
+
+function bindToggle(rowId, swId, key, after) {
+  document.getElementById(rowId).addEventListener('click', () => {
+    state[key] = !state[key];
+    document.getElementById(swId).classList.toggle('on', state[key]);
+    (after || applyFilters)();
+  });
+}
+bindToggle('toggle-alive', 'sw-alive', 'aliveOnly');
+bindToggle('toggle-labels', 'sw-labels', 'labels', () => {
+  label.style('display', state.labels ? null : 'none');
+});
+bindToggle('toggle-shared', 'sw-shared', 'shared', () => {
+  link.filter(d => d.type === 'shared').style('display', state.shared ? null : 'none');
+  applyFilters();
+});
+
+/* ---------------- svg scaffold ---------------- */
+
+const svg = d3.select('#graph');
+let W = window.innerWidth, H = window.innerHeight;
+svg.attr('viewBox', [0, 0, W, H]);
+
+const defs = svg.append('defs');
+const glow = defs.append('filter').attr('id', 'glow').attr('x', '-60%').attr('y', '-60%')
+  .attr('width', '220%').attr('height', '220%');
+glow.append('feGaussianBlur').attr('stdDeviation', 3.2).attr('result', 'b');
+const merge = glow.append('feMerge');
+merge.append('feMergeNode').attr('in', 'b');
+merge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+const root = svg.append('g');
+svg.call(d3.zoom().scaleExtent([0.15, 6]).on('zoom', ev => root.attr('transform', ev.transform)));
+
+const linkG = root.append('g');
+const nodeG = root.append('g');
+
+const link = linkG.selectAll('line').data(links).join('line')
+  .attr('class', d => 'link ' + d.type);
+
+const node = nodeG.selectAll('g').data(nodes).join('g')
+  .attr('class', 'node')
+  .call(d3.drag()
+    .on('start', (ev, d) => { if (!ev.active) sim.alphaTarget(0.25).restart(); d.fx = d.x; d.fy = d.y; })
+    .on('drag', (ev, d) => { d.fx = ev.x; d.fy = ev.y; })
+    .on('end', (ev, d) => { if (!ev.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+// Halo ring on interesting nodes only, so the eye lands on them first.
+node.filter(d => d.isTarget || d.risk === 'high').append('circle')
+  .attr('class', 'halo')
+  .attr('r', d => d.radius + 6)
+  .attr('stroke', d => RISK_COLOR[d.risk]);
+
+node.append('circle')
+  .attr('class', 'core')
+  .attr('r', d => d.radius)
+  .attr('fill', d => d.rec.alive || d.isTarget ? RISK_COLOR[d.risk] : DEAD_COLOR)
+  .attr('filter', d => d.isTarget || d.risk === 'high' ? 'url(#glow)' : null);
+
+const label = node.append('text')
+  .attr('dy', d => d.radius + 11)
+  .text(d => d.isTarget ? d.id : d.id.slice(0, -(apex.length + 1)));
+
+node.append('title').text(d => `${d.id}\n${d.rec.ips.join(', ') || 'neresolvuje'}`);
+
+node.on('click', (ev, d) => { ev.stopPropagation(); select(d.id); });
+svg.on('click', () => select(null));
+
+/* ---------------- force simulation ---------------- */
+
+const sim = d3.forceSimulation(nodes)
+  .force('link', d3.forceLink(links).id(d => d.id)
+    // Shared-IP peers pull together; the apex spokes stay long and springy.
+    .distance(d => d.type === 'shared' ? 42 : 128)
+    .strength(d => d.type === 'shared' ? 0.55 : 0.14))
+  .force('charge', d3.forceManyBody().strength(d => d.isTarget ? -900 : -190))
+  .force('center', d3.forceCenter(W / 2, H / 2))
+  .force('collide', d3.forceCollide().radius(d => d.radius + 13))
+  .force('x', d3.forceX(W / 2).strength(0.025))
+  .force('y', d3.forceY(H / 2).strength(0.035))
+  .on('tick', ticked);
+
+// Pin the apex so the map has a stable anchor to read outwards from.
+const apexNode = nodeById.get(apex);
+if (apexNode) { apexNode.fx = W / 2; apexNode.fy = H / 2; }
+
+function ticked() {
+  link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+  node.attr('transform', d => `translate(${d.x},${d.y})`);
+}
+
+window.addEventListener('resize', () => {
+  W = window.innerWidth; H = window.innerHeight;
+  svg.attr('viewBox', [0, 0, W, H]);
+  sim.force('center', d3.forceCenter(W / 2, H / 2));
+  if (apexNode) { apexNode.fx = W / 2; apexNode.fy = H / 2; }
+  sim.alpha(0.25).restart();
+});
+
+/* ---------------- filtering ---------------- */
+
+function matches(d) {
+  if (d.isTarget) return true;
+  const r = d.rec;
+  if (!state.risks.has(d.risk)) return false;
+  if (state.aliveOnly && !r.alive) return false;
+  if (!(r.sources || []).some(src => state.sources.has(src))) return false;
+  if (state.q) {
+    const haystack = [
+      d.id, (r.ips || []).join(' '), r.title || '', r.server || '',
+      String(r.status || ''), (r.sources || []).join(' '),
+      (r.risk_keywords || []).join(' ')
+    ].join(' ').toLowerCase();
+    if (!haystack.includes(state.q)) return false;
+  }
+  return true;
+}
+
+function applyFilters() {
+  const visible = new Set();
+  node.each(d => { if (matches(d)) visible.add(d.id); });
+
+  node.classed('dim', d => !visible.has(d.id));
+  link.classed('dim', d => !(visible.has(d.source.id) && visible.has(d.target.id)));
+
+  const n = visible.size - (visible.has(apex) ? 1 : 0);
+  document.getElementById('hitcount').innerHTML =
+    `zobrazeno <b>${n}</b> z <b>${nodes.length - 1}</b> subdomén`;
+}
+
+/* ---------------- detail panel ---------------- */
+
+const panel = document.getElementById('detail');
+document.getElementById('detail-close').addEventListener('click', () => select(null));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') select(null); });
+
+function statusClass(code) { return code ? 'status-' + String(code)[0] : ''; }
+
+function field(k, v, cls) {
+  const empty = v === null || v === undefined || v === '' ||
+                (Array.isArray(v) && v.length === 0);
+  const html = empty ? '<span class="v empty">—</span>'
+                     : `<span class="v ${cls || ''}">${v}</span>`;
+  return `<div class="field"><div class="k">${k}</div>${html}</div>`;
+}
+
+function esc(str) {
+  return String(str).replace(/[&<>"]/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+}
+
+function select(id) {
+  state.selected = id;
+  node.classed('sel', d => d.id === id);
+
+  if (!id) {
+    panel.classList.remove('open');
+    link.classed('hl', false);
+    node.classed('dim', d => !matches(d));
+    return;
+  }
+
+  const d = nodeById.get(id), r = d.rec;
+
+  // Focus mode: the selected node plus everything it touches.
+  const near = new Set([id]);
+  links.forEach(l => {
+    if (l.source.id === id) near.add(l.target.id);
+    if (l.target.id === id) near.add(l.source.id);
+  });
+  node.classed('dim', n2 => !near.has(n2.id));
+  link.classed('hl', l => l.source.id === id || l.target.id === id);
+
+  document.getElementById('d-host').textContent = r.hostname;
+  const badge = document.getElementById('d-badge');
+  badge.textContent = RISK_LABEL[d.risk];
+  badge.className = 'detail-badge badge-' + d.risk;
+
+  const neighbours = (r.shared_with || [])
+    .map(h => `<a class="neighbour" data-host="${esc(h)}">↳ ${esc(h)}</a>`).join('');
+
+  document.getElementById('d-body').innerHTML = [
+    field('IP adresy', (r.ips || []).map(ip => `<span class="tag">${esc(ip)}</span>`).join('')),
+    field('HTTP status',
+      r.status ? `${r.status}${r.scheme ? ' · ' + r.scheme.toUpperCase() : ''}` : null,
+      statusClass(r.status)),
+    field('Title', r.title ? esc(r.title) : null),
+    field('Server', r.server ? esc(r.server) : null),
+    field('Redirect', r.redirect ? esc(r.redirect) : null),
+    field('Zdroj nálezu',
+      (r.sources || []).map(x => `<span class="tag">${esc(x)}</span>`).join('')),
+    field('Klíčová slova',
+      (r.risk_keywords || []).map(x => `<span class="tag">${esc(x)}</span>`).join('')),
+    field(`Sdílí IP s (${(r.shared_with || []).length})`, neighbours)
+  ].join('');
+
+  // Neighbour links jump straight to the co-hosted node.
+  document.getElementById('d-body').querySelectorAll('.neighbour').forEach(a => {
+    a.addEventListener('click', () => select(a.dataset.host));
+  });
+
+  panel.classList.add('open');
+}
+
+applyFilters();
+</script>
+</body>
+</html>

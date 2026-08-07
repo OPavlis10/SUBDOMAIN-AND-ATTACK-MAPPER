@@ -1,0 +1,7 @@
+requests>=2.31.0
+dnspython>=2.4.0
+urllib3>=2.0.0
+
+# Volitelné: pouze pro Streamlit UI (app.py). CLI je bez nich funkční.
+streamlit>=1.30.0
+pandas>=2.0.0

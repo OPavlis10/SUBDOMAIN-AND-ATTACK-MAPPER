@@ -1,0 +1,172 @@
+{
+  "target": "kpcs.cz",
+  "scanned_at": "2026-08-07T15:53:02+00:00",
+  "duration_seconds": 42.8,
+  "summary": {
+    "total": 8,
+    "alive": 7,
+    "http_ok": 6,
+    "by_risk": {
+      "high": 0,
+      "medium": 0,
+      "low": 8
+    },
+    "by_source": {
+      "wayback": 8,
+      "target": 1
+    },
+    "unique_ips": 7
+  },
+  "results": [
+    {
+      "hostname": "atom.kpcs.cz",
+      "ips": [
+        "88.86.118.12"
+      ],
+      "alive": true,
+      "shared_with": [],
+      "status": null,
+      "title": null,
+      "scheme": null,
+      "server": null,
+      "redirect": null,
+      "sources": [
+        "wayback"
+      ],
+      "risk": "low",
+      "risk_keywords": []
+    },
+    {
+      "hostname": "click.kpcs.cz",
+      "ips": [
+        "5.182.148.11"
+      ],
+      "alive": true,
+      "shared_with": [],
+      "status": 200,
+      "title": "Welcome",
+      "scheme": "https",
+      "server": "Apache",
+      "redirect": null,
+      "sources": [
+        "wayback"
+      ],
+      "risk": "low",
+      "risk_keywords": []
+    },
+    {
+      "hostname": "fit.kpcs.cz",
+      "ips": [
+        "20.13.73.255"
+      ],
+      "alive": true,
+      "shared_with": [],
+      "status": 200,
+      "title": "FitKPCS - Sportovní výzva",
+      "scheme": "https",
+      "server": null,
+      "redirect": "https://fit.kpcs.cz/login",
+      "sources": [
+        "wayback"
+      ],
+      "risk": "low",
+      "risk_keywords": []
+    },
+    {
+      "hostname": "helpdesk.kpcs.cz",
+      "ips": [
+        "104.41.216.137"
+      ],
+      "alive": true,
+      "shared_with": [],
+      "status": 200,
+      "title": "Home &nbsp;· Customer Self-Service",
+      "scheme": "https",
+      "server": null,
+      "redirect": null,
+      "sources": [
+        "wayback"
+      ],
+      "risk": "low",
+      "risk_keywords": []
+    },
+    {
+      "hostname": "kpcs.cz",
+      "ips": [
+        "37.9.175.213"
+      ],
+      "alive": true,
+      "shared_with": [
+        "www.kpcs.cz"
+      ],
+      "status": 200,
+      "title": "KPCS | Technologie pro růst vaší firmy",
+      "scheme": "https",
+      "server": "openresty",
+      "redirect": "https://www.kpcs.cz/",
+      "sources": [
+        "wayback",
+        "target"
+      ],
+      "risk": "low",
+      "risk_keywords": []
+    },
+    {
+      "hostname": "link.kpcs.cz",
+      "ips": [
+        "170.187.131.209",
+        "185.3.93.228"
+      ],
+      "alive": true,
+      "shared_with": [],
+      "status": 200,
+      "title": "SMTP2GO",
+      "scheme": "https",
+      "server": null,
+      "redirect": null,
+      "sources": [
+        "wayback"
+      ],
+      "risk": "low",
+      "risk_keywords": []
+    },
+    {
+      "hostname": "pomoc.kpcs.cz",
+      "ips": [],
+      "alive": false,
+      "shared_with": [],
+      "status": null,
+      "title": null,
+      "scheme": null,
+      "server": null,
+      "redirect": null,
+      "sources": [
+        "wayback"
+      ],
+      "risk": "low",
+      "risk_keywords": []
+    },
+    {
+      "hostname": "www.kpcs.cz",
+      "ips": [
+        "37.9.175.213"
+      ],
+      "alive": true,
+      "shared_with": [
+        "kpcs.cz"
+      ],
+      "status": 200,
+      "title": "KPCS | Technologie pro růst vaší firmy",
+      "scheme": "https",
+      "server": "openresty",
+      "redirect": null,
+      "sources": [
+        "wayback"
+      ],
+      "risk": "low",
+      "risk_keywords": [
+        "www"
+      ]
+    }
+  ]
+}
