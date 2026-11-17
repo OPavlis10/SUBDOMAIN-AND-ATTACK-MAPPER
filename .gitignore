@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+
+# macOS / editors
+.DS_Store
+.idea/
+.vscode/
+
+# Scan output (contains data about third-party infrastructure)
+results.json
+report.html
+!subdomain-mapper/sample/results.json
+!subdomain-mapper/sample/report.html
