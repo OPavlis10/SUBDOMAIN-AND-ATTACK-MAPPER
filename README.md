@@ -12,6 +12,8 @@ Přesto platí: **nástroj používejte pouze na domény, které vlastníte, neb
 
 Výstupy skenů (`results.json`, `report.html`) obsahují data o infrastruktuře třetích stran a nepatří do veřejných repozitářů. Jsou proto v `.gitignore`.
 
+Ukázkový výstup v [`subdomain-mapper/sample/`](subdomain-mapper/sample/) je ručně sestavený pro rezervovanou doménu `example.com` s dokumentačními IP adresami (RFC 5737); nepochází z žádného skutečného skenu. Vykreslený report: [sample/report.html](https://opavlis10.github.io/SUBDOMAIN-AND-ATTACK-MAPPER/subdomain-mapper/sample/report.html).
+
 ---
 
 ## Co nástroj dělá

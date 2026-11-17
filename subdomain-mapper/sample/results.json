@@ -1,0 +1,258 @@
+{
+  "target": "example.com",
+  "scanned_at": "2026-01-01T12:00:00+00:00",
+  "duration_seconds": 38.4,
+  "summary": {
+    "total": 11,
+    "alive": 10,
+    "http_ok": 8,
+    "by_risk": {
+      "high": 4,
+      "medium": 3,
+      "low": 4
+    },
+    "by_source": {
+      "crt.sh": 9,
+      "dns-brute": 7,
+      "wayback": 4,
+      "target": 1
+    },
+    "unique_ips": 8
+  },
+  "results": [
+    {
+      "hostname": "admin.example.com",
+      "ips": [
+        "203.0.113.20"
+      ],
+      "alive": true,
+      "shared_with": [],
+      "status": 401,
+      "title": "Sign in",
+      "scheme": "https",
+      "server": "nginx",
+      "redirect": null,
+      "sources": [
+        "crt.sh",
+        "dns-brute"
+      ],
+      "risk": "high",
+      "risk_keywords": [
+        "admin"
+      ]
+    },
+    {
+      "hostname": "api.example.com",
+      "ips": [
+        "203.0.113.30"
+      ],
+      "alive": true,
+      "shared_with": [],
+      "status": 200,
+      "title": "Example API",
+      "scheme": "https",
+      "server": "nginx",
+      "redirect": null,
+      "sources": [
+        "crt.sh",
+        "dns-brute",
+        "wayback"
+      ],
+      "risk": "medium",
+      "risk_keywords": [
+        "api"
+      ]
+    },
+    {
+      "hostname": "blog.example.com",
+      "ips": [
+        "198.51.100.7"
+      ],
+      "alive": true,
+      "shared_with": [],
+      "status": 200,
+      "title": "Example Blog",
+      "scheme": "https",
+      "server": "cloudflare",
+      "redirect": null,
+      "sources": [
+        "crt.sh",
+        "wayback"
+      ],
+      "risk": "low",
+      "risk_keywords": [
+        "blog"
+      ]
+    },
+    {
+      "hostname": "dev.example.com",
+      "ips": [
+        "203.0.113.42"
+      ],
+      "alive": true,
+      "shared_with": [
+        "staging.example.com"
+      ],
+      "status": 200,
+      "title": "Example (dev)",
+      "scheme": "https",
+      "server": "nginx",
+      "redirect": null,
+      "sources": [
+        "crt.sh",
+        "dns-brute"
+      ],
+      "risk": "medium",
+      "risk_keywords": [
+        "dev"
+      ]
+    },
+    {
+      "hostname": "example.com",
+      "ips": [
+        "203.0.113.10"
+      ],
+      "alive": true,
+      "shared_with": [
+        "www.example.com"
+      ],
+      "status": 200,
+      "title": "Example Domain",
+      "scheme": "https",
+      "server": "nginx",
+      "redirect": "https://www.example.com/",
+      "sources": [
+        "crt.sh",
+        "target"
+      ],
+      "risk": "low",
+      "risk_keywords": []
+    },
+    {
+      "hostname": "grafana.example.com",
+      "ips": [
+        "203.0.113.21"
+      ],
+      "alive": true,
+      "shared_with": [],
+      "status": 200,
+      "title": "Grafana",
+      "scheme": "https",
+      "server": null,
+      "redirect": "https://grafana.example.com/login",
+      "sources": [
+        "crt.sh"
+      ],
+      "risk": "high",
+      "risk_keywords": [
+        "grafana"
+      ]
+    },
+    {
+      "hostname": "mail.example.com",
+      "ips": [
+        "198.51.100.25"
+      ],
+      "alive": true,
+      "shared_with": [],
+      "status": null,
+      "title": null,
+      "scheme": null,
+      "server": null,
+      "redirect": null,
+      "sources": [
+        "dns-brute"
+      ],
+      "risk": "low",
+      "risk_keywords": [
+        "mail"
+      ]
+    },
+    {
+      "hostname": "old.example.com",
+      "ips": [],
+      "alive": false,
+      "shared_with": [],
+      "status": null,
+      "title": null,
+      "scheme": null,
+      "server": null,
+      "redirect": null,
+      "sources": [
+        "wayback"
+      ],
+      "risk": "medium",
+      "risk_keywords": [
+        "old"
+      ]
+    },
+    {
+      "hostname": "staging.example.com",
+      "ips": [
+        "203.0.113.42"
+      ],
+      "alive": true,
+      "shared_with": [
+        "dev.example.com"
+      ],
+      "status": 200,
+      "title": "Staging — Example",
+      "scheme": "https",
+      "server": "nginx",
+      "redirect": null,
+      "sources": [
+        "crt.sh",
+        "dns-brute"
+      ],
+      "risk": "high",
+      "risk_keywords": [
+        "staging"
+      ]
+    },
+    {
+      "hostname": "vpn.example.com",
+      "ips": [
+        "203.0.113.50"
+      ],
+      "alive": true,
+      "shared_with": [],
+      "status": null,
+      "title": null,
+      "scheme": null,
+      "server": null,
+      "redirect": null,
+      "sources": [
+        "crt.sh",
+        "dns-brute"
+      ],
+      "risk": "high",
+      "risk_keywords": [
+        "vpn"
+      ]
+    },
+    {
+      "hostname": "www.example.com",
+      "ips": [
+        "203.0.113.10"
+      ],
+      "alive": true,
+      "shared_with": [
+        "example.com"
+      ],
+      "status": 200,
+      "title": "Example Domain",
+      "scheme": "https",
+      "server": "nginx",
+      "redirect": null,
+      "sources": [
+        "crt.sh",
+        "dns-brute",
+        "wayback"
+      ],
+      "risk": "low",
+      "risk_keywords": [
+        "www"
+      ]
+    }
+  ]
+}
